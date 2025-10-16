@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestFinishJob(t *testing.T) {
@@ -20,7 +19,9 @@ func TestFinishJob(t *testing.T) {
 			verifyAuthMethodPath(t, r, "POST", "/stacks/stack-123/jobs/456/finish")
 
 			var params FinishJobRequest
-			assert.NoError(t, json.NewDecoder(r.Body).Decode(&params))
+			if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+				t.Fatalf("json.NewDecoder(r.Body).Decode(&params) error: got %v, want nil", err)
+			}
 
 			expectedParams := FinishJobRequest{
 				ExitStatus: -10,
@@ -61,9 +62,13 @@ func TestFinishJob(t *testing.T) {
 			verifyAuthMethodPath(t, r, "POST", "/stacks/stack-123/jobs/456/finish")
 
 			var params FinishJobRequest
-			assert.NoError(t, json.NewDecoder(r.Body).Decode(&params))
+			if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+				t.Fatalf("json.NewDecoder(r.Body).Decode(&params) error: got %v, want nil", err)
+			}
 
-			assert.Equal(t, 4*1024, len(params.Detail))
+			if got, want := len(params.Detail), 4*1024; got != want {
+				t.Errorf("len(params.Detail) = %d, want %d", got, want)
+			}
 
 			w.WriteHeader(http.StatusNoContent)
 		})
@@ -79,6 +84,8 @@ func TestFinishJob(t *testing.T) {
 		}
 
 		_, err := client.FinishJob(t.Context(), req)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("client.FinishJob error: got %v, want nil", err)
+		}
 	})
 }

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGetJobStates(t *testing.T) {
@@ -19,7 +18,9 @@ func TestGetJobStates(t *testing.T) {
 			verifyAuthMethodPath(t, r, "POST", "/stacks/stack-123/jobs/get-states")
 
 			var params GetJobStatesRequest
-			assert.NoError(t, json.NewDecoder(r.Body).Decode(&params))
+			if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+				t.Fatalf("json.NewDecoder(r.Body).Decode(&params) error: got %v, want nil", err)
+			}
 
 			expectedParams := GetJobStatesRequest{
 				JobUUIDs: []string{"job-1", "job-2", "job-3"},
@@ -39,7 +40,9 @@ func TestGetJobStates(t *testing.T) {
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			assert.NoError(t, json.NewEncoder(w).Encode(response))
+			if err := json.NewEncoder(w).Encode(response); err != nil {
+				t.Fatalf("json.NewEncoder(w).Encode error: got %v, want nil", err)
+			}
 		})
 		t.Cleanup(func() { server.Close() })
 
@@ -49,7 +52,9 @@ func TestGetJobStates(t *testing.T) {
 		}
 
 		response, _, err := client.GetJobStates(t.Context(), req)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("client.GetJobStates error: got %v, want nil", err)
+		}
 
 		expectedResponse := &GetJobStatesResponse{
 			States: map[string]string{

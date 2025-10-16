@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateStackNotifications(t *testing.T) {
@@ -22,7 +21,9 @@ func TestCreateStackNotifications(t *testing.T) {
 			verifyAuthMethodPath(t, r, "POST", "/stacks/stack-123/notifications")
 
 			var params CreateStackNotificationsRequest
-			assert.NoError(t, json.NewDecoder(r.Body).Decode(&params))
+			if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+				t.Fatalf("json.NewDecoder(r.Body).Decode(&params) error: got %v, want nil", err)
+			}
 
 			expectedParams := CreateStackNotificationsRequest{
 				Notifications: []StackNotification{
@@ -44,9 +45,11 @@ func TestCreateStackNotifications(t *testing.T) {
 
 			w.Header().Set("X-Custom-Header", "custom-value")
 			w.WriteHeader(http.StatusOK)
-			assert.NoError(t, json.NewEncoder(w).Encode(CreateStackNotificationsResponse{
+			if err := json.NewEncoder(w).Encode(CreateStackNotificationsResponse{
 				Errors: []StackNotificationError{},
-			}))
+			}); err != nil {
+				t.Fatalf("json.NewEncoder(w).Encode error: got %v, want nil", err)
+			}
 		})
 		t.Cleanup(func() { server.Close() })
 
@@ -75,7 +78,9 @@ func TestCreateStackNotifications(t *testing.T) {
 			t.Errorf(`header.Get(X-Custom-Header) = %q, want %q`, got, want)
 		}
 
-		assert.Empty(t, resp.Errors)
+		if len(resp.Errors) != 0 {
+			t.Errorf("len(resp.Errors) = %d, want 0", len(resp.Errors))
+		}
 	})
 
 	t.Run("returns errors for validation failures", func(t *testing.T) {
@@ -85,7 +90,7 @@ func TestCreateStackNotifications(t *testing.T) {
 			verifyAuthMethodPath(t, r, "POST", "/stacks/stack-123/notifications")
 
 			w.WriteHeader(http.StatusOK)
-			assert.NoError(t, json.NewEncoder(w).Encode(CreateStackNotificationsResponse{
+			if err := json.NewEncoder(w).Encode(CreateStackNotificationsResponse{
 				Errors: []StackNotificationError{
 					{
 						Error:   "detail is required",
@@ -96,7 +101,9 @@ func TestCreateStackNotifications(t *testing.T) {
 						Indexes: []int{3},
 					},
 				},
-			}))
+			}); err != nil {
+				t.Fatalf("json.NewEncoder(w).Encode error: got %v, want nil", err)
+			}
 		})
 		t.Cleanup(func() { server.Close() })
 
@@ -111,7 +118,9 @@ func TestCreateStackNotifications(t *testing.T) {
 		}
 
 		resp, _, err := client.CreateStackNotifications(t.Context(), req)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Fatalf("client.CreateStackNotifications error: got %v, want nil", err)
+		}
 		wantErrors := []StackNotificationError{
 			{
 				Error:   "detail is required",
