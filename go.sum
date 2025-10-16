@@ -1,5 +1,3 @@
-github.com/buildkite/agent-stack-k8s/v2 v2.0.0-20251016024052-e0dfb3e52896 h1:xRvhK1m1wkZuR3k4dxSLVZKdJDZPTbSTWlMOuKxB0jY=
-github.com/buildkite/agent-stack-k8s/v2 v2.0.0-20251016024052-e0dfb3e52896/go.mod h1:s9dtTXgGky37sDo1lqPanm1Osl1iW0jIfcVvG44ytww=
 github.com/buildkite/roko v1.4.0 h1:DxixoCdpNqxu4/1lXrXbfsKbJSd7r1qoxtef/TT2J80=
 github.com/buildkite/roko v1.4.0/go.mod h1:0vbODqUFEcVf4v2xVXRfZZRsqJVsCCHTG/TBRByGK4E=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=

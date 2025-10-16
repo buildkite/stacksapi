@@ -72,7 +72,7 @@ func TestCreateStackNotifications(t *testing.T) {
 
 		want, got := "custom-value", header.Get("X-Custom-Header")
 		if want != got {
-			t.Errorf("header.Get(\"X-Custom-Header\") = %q, want %q", got, want)
+			t.Errorf(`header.Get(X-Custom-Header) = %q, want %q`, got, want)
 		}
 
 		assert.Empty(t, resp.Errors)

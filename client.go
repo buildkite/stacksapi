@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/buildkite/agent-stack-k8s/v2/internal/version"
 	"github.com/buildkite/roko"
 )
 
@@ -44,6 +43,8 @@ type ClientOpt func(*Client) error
 const (
 	DefaultBaseURL = "https://agent.buildkite.com/v3/"
 	DefaultQueue   = "_default"
+
+	defaultUserAgent = "stackspi/" + Version
 )
 
 var (
@@ -52,8 +53,6 @@ var (
 		roko.WithStrategy(roko.ExponentialSubsecond(1 * time.Second)),
 		roko.WithJitterRange(500*time.Millisecond, 1*time.Second),
 	}
-
-	defaultUserAgent = "agent-stack-k8s/" + version.Version()
 )
 
 // WithLogger sets the [*slog.Logger] for the API client. The default is a [slog.Logger] using the [slog.DiscardHandler] handler.

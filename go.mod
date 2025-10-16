@@ -3,7 +3,6 @@ module github.com/buildkite/stacksapi
 go 1.24.5
 
 require (
-	github.com/buildkite/agent-stack-k8s/v2 v2.0.0-20251016024052-e0dfb3e52896
 	github.com/buildkite/roko v1.4.0
 	github.com/google/go-cmp v0.7.0
 	github.com/stretchr/testify v1.11.1

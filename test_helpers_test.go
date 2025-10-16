@@ -39,7 +39,7 @@ func verifyAuthMethodPath(t *testing.T, r *http.Request, expectedMethod, expecte
 		t.Errorf("r.URL.Path = %s, expected %s", r.URL.Path, expectedPath)
 	}
 	if auth := r.Header.Get("Authorization"); auth != "Token test-token" {
-		t.Errorf("r.Header.Get(\"Authorization\") = %s, expected %s", auth, "Token test-token")
+		t.Errorf(`r.Header.Get(Authorization") = %s, expected %s`, auth, "Token test-token")
 	}
 }
 

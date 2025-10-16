@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/buildkite/agent-stack-k8s/v2/internal/version"
 	"github.com/buildkite/roko"
 	"github.com/google/go-cmp/cmp"
 )
@@ -27,9 +26,8 @@ func TestNewClient(t *testing.T) {
 			t.Errorf("client.BaseURL.String() = %q, expected %q", client.baseURL.String(), DefaultBaseURL)
 		}
 
-		expectedUA := "agent-stack-k8s/" + version.Version()
-		if client.userAgent != expectedUA {
-			t.Errorf("client.userAgent = %s, expected %s", client.userAgent, expectedUA)
+		if client.userAgent != defaultUserAgent {
+			t.Errorf("client.userAgent = %s, expected %s", client.userAgent, defaultUserAgent)
 		}
 
 		expectedAuth := "Token test-token"
@@ -64,7 +62,7 @@ func TestNewClient(t *testing.T) {
 			t.Error("client.httpClient mismatch (-want +got):\n" + diff)
 		}
 
-		expectedUA := "custom-agent agent-stack-k8s/" + version.Version()
+		expectedUA := "custom-agent " + defaultUserAgent
 		if client.userAgent != expectedUA {
 			t.Errorf("client.userAgent = %q, expected %q", client.userAgent, expectedUA)
 		}
@@ -96,16 +94,15 @@ func TestNewRequest(t *testing.T) {
 		}
 
 		if req.Header.Get("Authorization") != "Token test-token" {
-			t.Errorf("req.Header.Get(\"Authorization\") = %q, expected %q", req.Header.Get("Authorization"), "Token test-token")
+			t.Errorf(`req.Header.Get(Authorization) = %q, expected %q`, req.Header.Get("Authorization"), "Token test-token")
 		}
 
 		if req.Header.Get("Content-Type") != "application/json" {
-			t.Errorf("req.Header.Get(\"Content-Type\") = %q, expected %q", req.Header.Get("Content-Type"), "application/json")
+			t.Errorf("req.Header.Get(Content-Type) = %q, expected %q", req.Header.Get("Content-Type"), "application/json")
 		}
 
-		expectedUA := "agent-stack-k8s/" + version.Version()
-		if req.Header.Get("User-Agent") != expectedUA {
-			t.Errorf("req.Header.Get(\"User-Agent\") = %s, expected %s", req.Header.Get("User-Agent"), expectedUA)
+		if req.Header.Get("User-Agent") != defaultUserAgent {
+			t.Errorf("req.Header.Get(User-Agent) = %s, expected %s", req.Header.Get("User-Agent"), defaultUserAgent)
 		}
 	})
 
