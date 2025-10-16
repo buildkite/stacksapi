@@ -222,7 +222,7 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 		if err != nil {
 			return nil, nil, err
 		}
-		defer resp.Body.Close()
+		defer resp.Body.Close() //nolint:errcheck // idiomatic for response bodies
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {

@@ -1,0 +1,15 @@
+steps:
+  - name: ":go::robot_face: Lint"
+    key: lint
+    command: .buildkite/steps/lint.sh
+    plugins:
+      - docker#v5.9.0:
+          image: "golangci/golangci-lint:v2.0-alpine"
+
+  - name: ":go::test_tube: Test"
+    key: test
+    command: ".buildkite/steps/test.sh"
+    plugins:
+      - docker#v5.9.0:
+          image: "golang:1.24"
+          propagate-environment: true
