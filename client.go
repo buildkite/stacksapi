@@ -254,14 +254,13 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 			return nil, resp.Header, fmt.Errorf("reading response body: %w", err)
 		}
 
-		respLogger := attemptLogger.With("response_status", resp.StatusCode, "duration", elapsed)
-
-		responseLogger := c.prepareResponseLogger(respLogger, resp, body)
-		responseLogger.DebugContext(ctx, "received response")
+		respLogger := c.prepareResponseLogger(attemptLogger, resp, body).With("response_status", resp.StatusCode, "duration", elapsed)
 
 		if err := handleResponseError(ctx, respLogger, resp, body, r); err != nil {
 			return nil, resp.Header, err
 		}
+
+		respLogger.DebugContext(ctx, "received response")
 
 		var val Resp
 		if _, isEmpty := any(val).(struct{}); isEmpty {
@@ -278,24 +277,24 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 // handleResponseError processes error responses and determines retry behavior.
 func handleResponseError(ctx context.Context, logger *slog.Logger, resp *http.Response, body []byte, r *roko.Retrier) error {
 	err := checkResponse(resp, body)
-	if err != nil {
-		var errResp *ErrorResponse
-		if errors.As(err, &errResp) {
-			if errResp.IsRetryableStatus() {
-				setRetryAfter(r, resp, logger)
-				logger = logger.With("retry_state", r.String())
-			} else {
-				r.Break()
-			}
-
-			logger.DebugContext(ctx, "request failed", "error", err)
-			return err
-		}
-
-		logger.DebugContext(ctx, "request errored", "error", err)
-		return err
+	if err == nil {
+		return nil
 	}
-	return nil
+
+	retryState := ""
+	var errResp *ErrorResponse
+	if errors.As(err, &errResp) {
+		if errResp.IsRetryableStatus() {
+			setRetryAfter(r, resp, logger)
+			retryState = r.String()
+		} else {
+			retryState = "not retrying"
+			r.Break()
+		}
+	}
+
+	logger.With("retry_state", retryState).DebugContext(ctx, "request failed", "error", err)
+	return err
 }
 
 func setRetryAfter(r *roko.Retrier, resp *http.Response, logger *slog.Logger) {
