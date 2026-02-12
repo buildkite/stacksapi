@@ -11,8 +11,11 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/buildkite/roko"
 )
@@ -58,6 +61,9 @@ var (
 // WithLogger sets the [*slog.Logger] for the API client. The default is a [slog.Logger] using the [slog.DiscardHandler] handler.
 func WithLogger(logger *slog.Logger) ClientOpt {
 	return func(c *Client) error {
+		if logger == nil {
+			return errors.New("logger must not be nil")
+		}
 		c.logger = logger
 		return nil
 	}
@@ -75,6 +81,9 @@ func LogHTTPPayloads() ClientOpt {
 // WithBaseURL sets the base URL for the API client, overriding [DefaultBaseURL]
 func WithBaseURL(baseURL *url.URL) ClientOpt {
 	return func(c *Client) error {
+		if baseURL == nil {
+			return errors.New("baseURL must not be nil")
+		}
 		c.baseURL = baseURL
 		return nil
 	}
@@ -92,6 +101,9 @@ func PrependToUserAgent(prefix string) ClientOpt {
 // WithHTTPClient sets the HTTP client for the API client, overriding [http.DefaultClient].
 func WithHTTPClient(httpClient *http.Client) ClientOpt {
 	return func(c *Client) error {
+		if httpClient == nil {
+			return errors.New("httpClient must not be nil")
+		}
 		c.httpClient = httpClient
 		return nil
 	}
@@ -108,13 +120,17 @@ func WithRetrierOptions(opts ...roko.RetrierOpt) ClientOpt {
 // NewClient creates a new API client with the given token and options. Note that the token must be a Buildkite Cluster Token,
 // and that REST/GraphQL API tokens will not work.ql
 func NewClient(apiToken string, opts ...ClientOpt) (*Client, error) {
+	// Copy the default retrier options so callers can't mutate the shared slice.
+	defaultOpts := make([]roko.RetrierOpt, len(DefaultRetrierOptions))
+	copy(defaultOpts, DefaultRetrierOptions)
+
 	client := &Client{
 		httpClient:  http.DefaultClient,
 		baseURL:     urlMustParse(DefaultBaseURL),
 		userAgent:   defaultUserAgent,
 		logger:      slog.New(slog.DiscardHandler),
 		authHeader:  fmt.Sprintf("Token %s", apiToken),
-		retrierOpts: DefaultRetrierOptions,
+		retrierOpts: defaultOpts,
 	}
 
 	for _, opt := range opts {
@@ -157,6 +173,9 @@ func WithNoRetry() RequestOption {
 
 // newRequest creates a new API request suitable for dispatch to the Buildkite Stacks API with the given context, method, path, and body.
 func (c *Client) newRequest(ctx context.Context, method, path string, body any, opts ...RequestOption) (*StackAPIRequest, error) {
+	// Normalize path to be relative so that JoinPath doesn't discard the base
+	// path (e.g. "/v3/") when the caller passes a leading slash.
+	path = strings.TrimLeft(path, "/")
 	fullURL := c.baseURL.JoinPath(path)
 
 	var bodyBytes []byte
@@ -215,11 +234,17 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 	return roko.DoFunc2(ctx, req.retrier, func(r *roko.Retrier) (*Resp, http.Header, error) {
 		req.resetBody()
 
-		sendRequestLogger := c.prepareRequestLogger(logger, req)
+		requestID := uuid.New().String()
+		attemptLogger := logger.With("request_id", requestID)
+
+		sendRequestLogger := c.prepareRequestLogger(attemptLogger, req)
 		sendRequestLogger.DebugContext(ctx, "sending request")
 
+		start := time.Now()
 		resp, err := c.httpClient.Do(req.Request)
+		elapsed := time.Since(start)
 		if err != nil {
+			attemptLogger.DebugContext(ctx, "request failed", "duration", elapsed, "error", err)
 			return nil, nil, err
 		}
 		defer resp.Body.Close() //nolint:errcheck // idiomatic for response bodies
@@ -229,14 +254,13 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 			return nil, resp.Header, fmt.Errorf("reading response body: %w", err)
 		}
 
-		logger := c.logger.With("response_status", resp.StatusCode)
+		respLogger := c.prepareResponseLogger(attemptLogger, resp, body).With("response_status", resp.StatusCode, "duration", elapsed)
 
-		responseLogger := c.prepareResponseLogger(logger, resp)
-		responseLogger.DebugContext(ctx, "received response")
-
-		if err := handleResponseError(ctx, logger, resp, body, r); err != nil {
+		if err := handleResponseError(ctx, respLogger, resp, body, r); err != nil {
 			return nil, resp.Header, err
 		}
+
+		respLogger.DebugContext(ctx, "received response")
 
 		var val Resp
 		if _, isEmpty := any(val).(struct{}); isEmpty {
@@ -253,24 +277,24 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 // handleResponseError processes error responses and determines retry behavior.
 func handleResponseError(ctx context.Context, logger *slog.Logger, resp *http.Response, body []byte, r *roko.Retrier) error {
 	err := checkResponse(resp, body)
-	if err != nil {
-		var errResp *ErrorResponse
-		if errors.As(err, &errResp) {
-			if errResp.IsRetryableStatus() {
-				setRetryAfter(r, resp, logger)
-				logger = logger.With("retry_state", r.String())
-			} else {
-				r.Break()
-			}
-
-			logger.DebugContext(ctx, "request failed", "error", err)
-			return err
-		}
-
-		logger.DebugContext(ctx, "request errored", "error", err)
-		return err
+	if err == nil {
+		return nil
 	}
-	return nil
+
+	retryState := ""
+	var errResp *ErrorResponse
+	if errors.As(err, &errResp) {
+		if errResp.IsRetryableStatus() {
+			setRetryAfter(r, resp, logger)
+			retryState = r.String()
+		} else {
+			retryState = "not retrying"
+			r.Break()
+		}
+	}
+
+	logger.With("retry_state", retryState).DebugContext(ctx, "request failed", "error", err)
+	return err
 }
 
 func setRetryAfter(r *roko.Retrier, resp *http.Response, logger *slog.Logger) {
@@ -299,13 +323,16 @@ func (c *Client) prepareRequestLogger(logger *slog.Logger, req *StackAPIRequest)
 		return logger
 	}
 
-	return logger.With("request", string(reqDump))
+	return logger.With("request", redactHeaders(string(reqDump)))
 }
 
-func (c *Client) prepareResponseLogger(logger *slog.Logger, resp *http.Response) *slog.Logger {
+func (c *Client) prepareResponseLogger(logger *slog.Logger, resp *http.Response, body []byte) *slog.Logger {
 	if !c.logHTTPPayloads {
 		return logger
 	}
+
+	// Temporarily restore the consumed body so DumpResponse can include it.
+	resp.Body = io.NopCloser(bytes.NewReader(body))
 
 	respDump, err := httputil.DumpResponse(resp, true)
 	if err != nil {
@@ -313,7 +340,15 @@ func (c *Client) prepareResponseLogger(logger *slog.Logger, resp *http.Response)
 		return logger
 	}
 
-	return logger.With("response", string(respDump))
+	return logger.With("response", redactHeaders(string(respDump)))
+}
+
+// sensitiveHeaderRe matches HTTP headers whose values should be redacted from logs.
+var sensitiveHeaderRE = regexp.MustCompile(`(?im)^(Authorization):\s*(.+)$`)
+
+// redactHeaders replaces the values of sensitive headers in an HTTP dump with "[REDACTED]".
+func redactHeaders(dump string) string {
+	return sensitiveHeaderRE.ReplaceAllString(dump, "${1}: [REDACTED]")
 }
 
 func constructPath(format string, a ...string) string {
