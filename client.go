@@ -235,12 +235,12 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 		// Restore the body so that DumpResponse can read it for logging.
 		resp.Body = io.NopCloser(bytes.NewReader(body))
 
-		logger := c.logger.With("response_status", resp.StatusCode)
+		respLogger := logger.With("response_status", resp.StatusCode)
 
-		responseLogger := c.prepareResponseLogger(logger, resp)
+		responseLogger := c.prepareResponseLogger(respLogger, resp)
 		responseLogger.DebugContext(ctx, "received response")
 
-		if err := handleResponseError(ctx, logger, resp, body, r); err != nil {
+		if err := handleResponseError(ctx, respLogger, resp, body, r); err != nil {
 			return nil, resp.Header, err
 		}
 
