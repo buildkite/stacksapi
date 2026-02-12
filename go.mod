@@ -5,6 +5,7 @@ go 1.24.5
 require (
 	github.com/buildkite/roko v1.4.0
 	github.com/google/go-cmp v0.7.0
+	github.com/google/uuid v1.6.0
 )
 
 require (

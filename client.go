@@ -14,6 +14,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/buildkite/roko"
 )
 
@@ -231,11 +233,17 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 	return roko.DoFunc2(ctx, req.retrier, func(r *roko.Retrier) (*Resp, http.Header, error) {
 		req.resetBody()
 
-		sendRequestLogger := c.prepareRequestLogger(logger, req)
+		requestID := uuid.New().String()
+		attemptLogger := logger.With("request_id", requestID)
+
+		sendRequestLogger := c.prepareRequestLogger(attemptLogger, req)
 		sendRequestLogger.DebugContext(ctx, "sending request")
 
+		start := time.Now()
 		resp, err := c.httpClient.Do(req.Request)
+		elapsed := time.Since(start)
 		if err != nil {
+			attemptLogger.DebugContext(ctx, "request failed", "duration", elapsed, "error", err)
 			return nil, nil, err
 		}
 		defer resp.Body.Close() //nolint:errcheck // idiomatic for response bodies
@@ -248,7 +256,7 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 		// Restore the body so that DumpResponse can read it for logging.
 		resp.Body = io.NopCloser(bytes.NewReader(body))
 
-		respLogger := logger.With("response_status", resp.StatusCode)
+		respLogger := attemptLogger.With("response_status", resp.StatusCode, "duration", elapsed)
 
 		responseLogger := c.prepareResponseLogger(respLogger, resp)
 		responseLogger.DebugContext(ctx, "received response")
