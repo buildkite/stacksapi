@@ -157,6 +157,9 @@ func WithNoRetry() RequestOption {
 
 // newRequest creates a new API request suitable for dispatch to the Buildkite Stacks API with the given context, method, path, and body.
 func (c *Client) newRequest(ctx context.Context, method, path string, body any, opts ...RequestOption) (*StackAPIRequest, error) {
+	// Normalize path to be relative so that JoinPath doesn't discard the base
+	// path (e.g. "/v3/") when the caller passes a leading slash.
+	path = strings.TrimLeft(path, "/")
 	fullURL := c.baseURL.JoinPath(path)
 
 	var bodyBytes []byte
