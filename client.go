@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -253,12 +254,9 @@ func do[Resp any](ctx context.Context, c *Client, req *StackAPIRequest) (*Resp, 
 			return nil, resp.Header, fmt.Errorf("reading response body: %w", err)
 		}
 
-		// Restore the body so that DumpResponse can read it for logging.
-		resp.Body = io.NopCloser(bytes.NewReader(body))
-
 		respLogger := attemptLogger.With("response_status", resp.StatusCode, "duration", elapsed)
 
-		responseLogger := c.prepareResponseLogger(respLogger, resp)
+		responseLogger := c.prepareResponseLogger(respLogger, resp, body)
 		responseLogger.DebugContext(ctx, "received response")
 
 		if err := handleResponseError(ctx, respLogger, resp, body, r); err != nil {
@@ -326,13 +324,16 @@ func (c *Client) prepareRequestLogger(logger *slog.Logger, req *StackAPIRequest)
 		return logger
 	}
 
-	return logger.With("request", string(reqDump))
+	return logger.With("request", redactHeaders(string(reqDump)))
 }
 
-func (c *Client) prepareResponseLogger(logger *slog.Logger, resp *http.Response) *slog.Logger {
+func (c *Client) prepareResponseLogger(logger *slog.Logger, resp *http.Response, body []byte) *slog.Logger {
 	if !c.logHTTPPayloads {
 		return logger
 	}
+
+	// Temporarily restore the consumed body so DumpResponse can include it.
+	resp.Body = io.NopCloser(bytes.NewReader(body))
 
 	respDump, err := httputil.DumpResponse(resp, true)
 	if err != nil {
@@ -340,7 +341,15 @@ func (c *Client) prepareResponseLogger(logger *slog.Logger, resp *http.Response)
 		return logger
 	}
 
-	return logger.With("response", string(respDump))
+	return logger.With("response", redactHeaders(string(respDump)))
+}
+
+// sensitiveHeaderRe matches HTTP headers whose values should be redacted from logs.
+var sensitiveHeaderRE = regexp.MustCompile(`(?im)^(Authorization):\s*(.+)$`)
+
+// redactHeaders replaces the values of sensitive headers in an HTTP dump with "[REDACTED]".
+func redactHeaders(dump string) string {
+	return sensitiveHeaderRE.ReplaceAllString(dump, "${1}: [REDACTED]")
 }
 
 func constructPath(format string, a ...string) string {
