@@ -58,6 +58,9 @@ var (
 // WithLogger sets the [*slog.Logger] for the API client. The default is a [slog.Logger] using the [slog.DiscardHandler] handler.
 func WithLogger(logger *slog.Logger) ClientOpt {
 	return func(c *Client) error {
+		if logger == nil {
+			return errors.New("logger must not be nil")
+		}
 		c.logger = logger
 		return nil
 	}
@@ -75,6 +78,9 @@ func LogHTTPPayloads() ClientOpt {
 // WithBaseURL sets the base URL for the API client, overriding [DefaultBaseURL]
 func WithBaseURL(baseURL *url.URL) ClientOpt {
 	return func(c *Client) error {
+		if baseURL == nil {
+			return errors.New("baseURL must not be nil")
+		}
 		c.baseURL = baseURL
 		return nil
 	}
@@ -92,6 +98,9 @@ func PrependToUserAgent(prefix string) ClientOpt {
 // WithHTTPClient sets the HTTP client for the API client, overriding [http.DefaultClient].
 func WithHTTPClient(httpClient *http.Client) ClientOpt {
 	return func(c *Client) error {
+		if httpClient == nil {
+			return errors.New("httpClient must not be nil")
+		}
 		c.httpClient = httpClient
 		return nil
 	}
@@ -108,13 +117,17 @@ func WithRetrierOptions(opts ...roko.RetrierOpt) ClientOpt {
 // NewClient creates a new API client with the given token and options. Note that the token must be a Buildkite Cluster Token,
 // and that REST/GraphQL API tokens will not work.ql
 func NewClient(apiToken string, opts ...ClientOpt) (*Client, error) {
+	// Copy the default retrier options so callers can't mutate the shared slice.
+	defaultOpts := make([]roko.RetrierOpt, len(DefaultRetrierOptions))
+	copy(defaultOpts, DefaultRetrierOptions)
+
 	client := &Client{
 		httpClient:  http.DefaultClient,
 		baseURL:     urlMustParse(DefaultBaseURL),
 		userAgent:   defaultUserAgent,
 		logger:      slog.New(slog.DiscardHandler),
 		authHeader:  fmt.Sprintf("Token %s", apiToken),
-		retrierOpts: DefaultRetrierOptions,
+		retrierOpts: defaultOpts,
 	}
 
 	for _, opt := range opts {
