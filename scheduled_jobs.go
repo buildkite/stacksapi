@@ -98,7 +98,7 @@ func (c *Client) ListScheduledJobs(ctx context.Context, listReq ListScheduledJob
 type BatchReserveJobsRequest struct {
 	StackKey                 string   `json:"-"`                                   // The key of the stack calling this endpoint. Required.
 	JobUUIDs                 []string `json:"job_uuids"`                           // The UUIDs of the jobs to reserve. Required.
-	ReservationExpirySeconds int      `json:"reservation_expiry_seconds,omitzero"` // The number of seconds until the reservation expires. Optional, defaults to 300 (5 minutes) if not set.
+	ReservationExpirySeconds int      `json:"reservation_expiry_seconds,omitzero"` // The number of seconds until the reservation expires. Optional, defaults to 900 (15 minutes) if not set.
 }
 
 // BatchReserveJobsResponse is the output type for [BatchReserveJobs]. It contains lists of successfully reserved and not reserved job UUIDs.
