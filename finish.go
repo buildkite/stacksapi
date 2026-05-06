@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"unicode/utf8"
 )
 
 type FinishJobRequest struct {
@@ -19,7 +20,14 @@ func (c *Client) FinishJob(ctx context.Context, finishJobReq FinishJobRequest, o
 
 	if len(finishJobReq.Detail) > maxDetailSize {
 		c.logger.Warn("Detail exceeds 4KB limit, cropping", "original_size", len(finishJobReq.Detail), "cropped_size", maxDetailSize)
-		finishJobReq.Detail = finishJobReq.Detail[:maxDetailSize] + croppedMessage
+		// Walk back to the nearest rune boundary so we don't slice a multi-byte
+		// UTF-8 character in half; partial runes get encoded as U+FFFD by
+		// encoding/json, inflating the payload past the server's 4KB cap.
+		cut := maxDetailSize
+		for cut > 0 && !utf8.RuneStart(finishJobReq.Detail[cut]) {
+			cut--
+		}
+		finishJobReq.Detail = finishJobReq.Detail[:cut] + croppedMessage
 	}
 
 	path := constructPath("/stacks/%s/jobs/%s/finish", finishJobReq.StackKey, finishJobReq.JobUUID)
