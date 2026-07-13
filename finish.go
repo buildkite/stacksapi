@@ -12,6 +12,12 @@ type FinishJobRequest struct {
 	JobUUID    string `json:"-"`
 	ExitStatus int    `json:"exit_status,omitempty"`
 	Detail     string `json:"detail"`
+	// SignalReason optionally records why the stack terminated the job (for
+	// example "stack_error"), giving the job a machine-readable failure
+	// reason alongside the human-readable Detail. Known values match the
+	// signal reasons documented for retry rules:
+	// https://buildkite.com/docs/pipelines/configure/retry
+	SignalReason string `json:"signal_reason,omitempty"`
 }
 
 func (c *Client) FinishJob(ctx context.Context, finishJobReq FinishJobRequest, opts ...RequestOption) (http.Header, error) {

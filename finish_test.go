@@ -25,8 +25,9 @@ func TestFinishJob(t *testing.T) {
 			}
 
 			expectedParams := FinishJobRequest{
-				ExitStatus: -10,
-				Detail:     "show me the money",
+				ExitStatus:   -10,
+				Detail:       "show me the money",
+				SignalReason: "stack_error",
 			}
 
 			if diff := cmp.Diff(expectedParams, params); diff != "" {
@@ -39,10 +40,11 @@ func TestFinishJob(t *testing.T) {
 		t.Cleanup(func() { server.Close() })
 
 		req := FinishJobRequest{
-			StackKey:   "stack-123",
-			JobUUID:    "456",
-			ExitStatus: -10,
-			Detail:     "show me the money",
+			StackKey:     "stack-123",
+			JobUUID:      "456",
+			ExitStatus:   -10,
+			Detail:       "show me the money",
+			SignalReason: "stack_error",
 		}
 
 		header, err := client.FinishJob(t.Context(), req)
