@@ -20,6 +20,32 @@ var listResp = &ListScheduledJobsResponse{
 func TestListScheduledJobs(t *testing.T) {
 	t.Parallel()
 
+	t.Run("decodes dispatch-paused queue state", func(t *testing.T) {
+		t.Parallel()
+
+		server, client := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			verifyAuthMethodPath(t, r, "GET", "/stacks/stack-123/scheduled-jobs")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{
+				"jobs": [],
+				"cluster_queue": {"id": "queue-456", "dispatch_paused": true},
+				"page_info": {"has_next_page": false, "end_cursor": ""}
+			}`))
+		})
+		t.Cleanup(server.Close)
+
+		resp, _, err := client.ListScheduledJobs(t.Context(), ListScheduledJobsRequest{
+			StackKey:        "stack-123",
+			ClusterQueueKey: "queue-456",
+		})
+		if err != nil {
+			t.Fatalf("client.ListScheduledJobs error = %v, expected nil", err)
+		}
+		if !resp.ClusterQueue.Paused {
+			t.Error("ClusterQueue.Paused = false, want true")
+		}
+	})
+
 	t.Run("encodes filled query params correctly", func(t *testing.T) {
 		t.Parallel()
 

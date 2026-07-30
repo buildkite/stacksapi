@@ -39,7 +39,7 @@ type ScheduledJob struct {
 // ClusterQueue represents a cluster queue in the Buildkite Stacks system.
 type ClusterQueue struct {
 	ID     string `json:"id"`
-	Paused bool   `json:"paused"`
+	Paused bool   `json:"dispatch_paused"`
 }
 
 // PageInfo contains information about pagination in a list response.
