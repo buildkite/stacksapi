@@ -30,10 +30,11 @@ type ScheduledJob struct {
 	ID              string    `json:"id"`                // The UUID of the job
 	Priority        int       `json:"priority"`          // The priority of the job; higher priority jobs should be scheduled first
 	AgentQueryRules []string  `json:"agent_query_rules"` // The agent tags that must be matched to run the job
-	ScheduledAt     time.Time `json:"scheduled_at"`      // When the job was scheduled
-	Pipeline        Pipeline  `json:"pipeline"`          // The pipeline the job belongs to
-	Build           Build     `json:"build"`             // The build the job belongs to
-	Step            Step      `json:"step"`              // The step the job was created by
+	RunnableAt      time.Time `json:"runnable_at"`
+	ScheduledAt     time.Time `json:"scheduled_at"` // When the job was scheduled
+	Pipeline        Pipeline  `json:"pipeline"`     // The pipeline the job belongs to
+	Build           Build     `json:"build"`        // The build the job belongs to
+	Step            Step      `json:"step"`         // The step the job was created by
 }
 
 // ClusterQueue represents a cluster queue in the Buildkite Stacks system.
