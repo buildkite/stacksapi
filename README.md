@@ -60,6 +60,15 @@ job, _, err := client.GetJob(ctx, stacksapi.GetJobRequest{
 })
 ```
 
+### Issue Job Acquisition Tokens
+
+```go
+tokens, _, err := client.IssueJobAcquisitionTokens(ctx, stacksapi.IssueJobAcquisitionTokensRequest{
+    StackKey: "my-stack",
+    JobUUIDs: []string{jobUUID},
+})
+```
+
 ### Finish a Job
 
 ```go
