@@ -38,7 +38,7 @@ func (c *Client) IssueJobAcquisitionTokens(ctx context.Context, issueReq IssueJo
 
 	issueResp, header, err := do[IssueJobAcquisitionTokensResponse](ctx, c, req)
 	if err != nil {
-		return nil, nil, fmt.Errorf("issue job acquisition tokens: %w", err)
+		return nil, header, fmt.Errorf("issue job acquisition tokens: %w", err)
 	}
 
 	return issueResp, header, nil
